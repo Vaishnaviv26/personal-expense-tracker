@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Database connection
+# ---------- DATABASE ----------
 conn = sqlite3.connect("expenses.db", check_same_thread=False)
 
 conn.execute("""
@@ -22,158 +23,469 @@ CREATE TABLE IF NOT EXISTS expenses (
     description TEXT
 )
 """)
+
+conn.execute("""
+CREATE TABLE IF NOT EXISTS settings (
+    setting_key TEXT PRIMARY KEY,
+    setting_value REAL
+)
+""")
+
+conn.execute("""
+INSERT OR IGNORE INTO settings (setting_key, setting_value)
+VALUES ('monthly_budget', 10000)
+""")
 conn.commit()
 
-st.title("💰 Personal Expense Tracker")
+CATEGORIES = [
+    "Food", "Travel", "Shopping",
+    "Education", "Bills", "Health", "Other"
+]
+
+# ---------- PROFESSIONAL DESIGN ----------
 st.markdown("""
 <style>
+
+/* Main page background */
 .stApp {
-    background-color: #f4f7fb;
+    background-color: #F3F6FB;
+    color: #243447;
 }
 
+/* Main content */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Sidebar */
 [data-testid="stSidebar"] {
-    background-color: #e8eef8;
+    background-color: #E7EEF8;
 }
 
+/* Headings */
 h1 {
-    color: #17365d;
-    font-weight: 800;
+    color: #17365D !important;
+    font-weight: 800 !important;
 }
 
 h2, h3 {
-    color: #24476b;
+    color: #24476B !important;
+    font-weight: 700 !important;
 }
 
+/* Normal text */
+.stApp p,
+.stApp label,
+.stApp .stMarkdown {
+    color: #243447;
+}
+
+/* Metric cards */
 [data-testid="stMetric"] {
-    background-color: white;
-    padding: 18px;
-    border-radius: 12px;
-    border: 1px solid #dce5f1;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.04);
+    background-color: #FFFFFF;
+    padding: 20px;
+    border-radius: 14px;
+    border: 1px solid #D8E2F0;
+    box-shadow: 0 4px 12px rgba(23, 54, 93, 0.08);
 }
 
-.stButton > button {
+/* Metric labels */
+[data-testid="stMetricLabel"] {
+    color: #52677F !important;
+}
+
+/* Metric values */
+[data-testid="stMetricValue"] {
+    color: #17365D !important;
+    font-weight: 800;
+    font-size: 16px !important;
+    white-space: nowrap;
+}
+
+/* Buttons */
+.stButton > button,
+.stDownloadButton > button,
+.stFormSubmitButton > button {
+    background-color: #2457A7;
+    color: white !important;
+    border: none;
     border-radius: 8px;
     font-weight: 600;
+    padding: 0.5rem 1rem;
 }
+
+/* Button hover */
+.stButton > button:hover,
+.stDownloadButton > button:hover,
+.stFormSubmitButton > button:hover {
+    background-color: #17365D;
+    color: white !important;
+    border: none;
+}
+
+/* Input boxes */
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input {
+    background-color: #FFFFFF;
+    color: #243447;
+    border-radius: 7px;
+}
+
+/* Data table */
+[data-testid="stDataFrame"] {
+    background-color: #FFFFFF;
+    border-radius: 10px;
+}
+
+/* Dividers */
+hr {
+    border-color: #D8E2F0;
+}
+
 </style>
 """, unsafe_allow_html=True)
-st.write("Manage your daily expenses and understand your spending.")
 
-# Sidebar
+st.title("💰 Personal Expense Tracker")
+st.write(
+    "Manage your money, track spending and understand "
+    "your financial habits."
+)
+
+# ---------- MONTHLY BUDGET ----------
+budget_row = conn.execute("""
+SELECT setting_value FROM settings
+WHERE setting_key = 'monthly_budget'
+""").fetchone()
+
+monthly_budget = float(budget_row[0]) if budget_row else 10000.0
+
+with st.sidebar.expander("💰 Monthly Budget", expanded=True):
+    with st.form("budget_form"):
+        new_budget = st.number_input(
+            "Set monthly budget (₹)",
+            min_value=0.0,
+            value=monthly_budget,
+            step=500.0
+        )
+        save_budget = st.form_submit_button("Save Budget")
+
+        if save_budget:
+            conn.execute("""
+                UPDATE settings
+                SET setting_value = ?
+                WHERE setting_key = 'monthly_budget'
+            """, (new_budget,))
+            conn.commit()
+            st.success("Budget saved!")
+            st.rerun()
+
+# ---------- ADD EXPENSE ----------
 st.sidebar.header("➕ Add New Expense")
 
 with st.sidebar.form("expense_form", clear_on_submit=True):
     expense_date = st.date_input("Expense Date", value=date.today())
-
-    category = st.selectbox(
-        "Category",
-        ["Food", "Travel", "Shopping", "Education", "Bills", "Other"]
-    )
-
+    category = st.selectbox("Category", CATEGORIES)
     amount = st.number_input(
-        "Amount (₹)",
-        min_value=0.01,
-        value=100.0,
-        step=10.0
+        "Amount (₹)", min_value=0.01, value=100.0, step=10.0
     )
-
     description = st.text_input("Description")
-
     submitted = st.form_submit_button("Add Expense")
 
     if submitted:
-        conn.execute(
-            """INSERT INTO expenses
+        conn.execute("""
+            INSERT INTO expenses
             (expense_date, category, amount, description)
-            VALUES (?, ?, ?, ?)""",
-            (str(expense_date), category, amount, description)
-        )
+            VALUES (?, ?, ?, ?)
+        """, (str(expense_date), category, amount, description))
         conn.commit()
         st.success("Expense added successfully!")
         st.rerun()
 
-# Load expenses
+# ---------- LOAD DATA ----------
 df = pd.read_sql_query(
-    "SELECT * FROM expenses ORDER BY expense_date DESC",
+    "SELECT * FROM expenses ORDER BY expense_date DESC, id DESC",
     conn
 )
 
-if not df.empty:
-    df["expense_date"] = pd.to_datetime(df["expense_date"])
-    today = pd.Timestamp.today()
+if df.empty:
+    st.info("No expenses added yet. Use the sidebar to add your first expense!")
+    st.caption("Your dashboard will appear here after you add an expense.")
 
-    current_month = df[
-        (df["expense_date"].dt.month == today.month) &
-        (df["expense_date"].dt.year == today.year)
+else:
+    df["expense_date"] = pd.to_datetime(df["expense_date"])
+    today = pd.Timestamp(date.today())
+
+    # Current month data
+    month_df = df[
+        (df["expense_date"].dt.month == today.month)
+        & (df["expense_date"].dt.year == today.year)
     ]
 
-    total_expenses = df["amount"].sum()
-    monthly_expenses = current_month["amount"].sum()
+    total_spending = float(df["amount"].sum())
+    monthly_spending = float(month_df["amount"].sum())
+    remaining_budget = monthly_budget - monthly_spending
 
-    col1, col2, col3 = st.columns(3)
+    # ---------- SUMMARY CARDS ----------
+    st.subheader("📊 Financial Overview")
 
-    col1.metric("💸 Total Expenses", f"₹{total_expenses:,.2f}")
-    col2.metric("📅 This Month", f"₹{monthly_expenses:,.2f}")
-    col3.metric("🧾 Total Transactions", len(df))
+    col1, col2 , col3,col4 = st.columns(4)
 
-    st.subheader("📊 Spending by Category")
+    col1.metric("💸 Total Spending", f"₹{total_spending:,.2f}")
+    col2.metric("📅 This Month", f"₹{monthly_spending:,.2f}")
+    col3.metric("💰 Monthly Budget", f"₹{monthly_budget:,.2f}")
+    col4.metric("🏦 Budget Remaining", f"₹{remaining_budget:,.2f}")
 
-    category_data = df.groupby("category")["amount"].sum()
+    if monthly_budget > 0:
+        used_percent = monthly_spending / monthly_budget
+        st.write("**Monthly Budget Usage**")
+        st.progress(min(used_percent, 1.0))
+        st.caption(f"{used_percent * 100:.1f}% of your budget used")
 
-    fig, ax = plt.subplots()
-    category_data.plot(kind="bar", ax=ax)
-    ax.set_ylabel("Amount (₹)")
-    ax.set_xlabel("Category")
-    ax.set_title("Expense Analysis")
-    plt.xticks(rotation=30)
-    plt.tight_layout()
+        if used_percent > 1:
+            st.error("Your monthly spending has exceeded the budget!")
+        elif used_percent >= 0.8:
+            st.warning("You have used at least 80% of your monthly budget.")
+        else:
+            st.success("Your spending is within your monthly budget.")
 
-    st.pyplot(fig)
-    plt.close(fig)
+    # ---------- FILTERS ----------
+    st.subheader("🔎 Filter Expenses")
 
-    st.subheader("📋 All Expenses")
+    filter_col1, filter_col2, filter_col3 = st.columns(3)
 
-    display_df = df.copy()
-    display_df["expense_date"] = display_df["expense_date"].dt.strftime("%Y-%m-%d")
+    with filter_col1:
+        start_date = st.date_input(
+            "From date",
+            value=df["expense_date"].min().date(),
+            key="filter_start"
+        )
+
+    with filter_col2:
+        end_date = st.date_input(
+            "To date",
+            value=date.today(),
+            key="filter_end"
+        )
+
+    with filter_col3:
+        selected_category = st.selectbox(
+            "Category",
+            ["All Categories"] + CATEGORIES
+        )
+
+    if start_date > end_date:
+        st.error("The start date must be before the end date.")
+        filtered_df = df.iloc[0:0].copy()
+    else:
+        filtered_df = df[
+            (df["expense_date"].dt.date >= start_date)
+            & (df["expense_date"].dt.date <= end_date)
+        ].copy()
+
+        if selected_category != "All Categories":
+            filtered_df = filtered_df[
+                filtered_df["category"] == selected_category
+            ]
+
+    st.caption(
+        f"{len(filtered_df)} transactions found | "
+        f"Filtered total: ₹{filtered_df['amount'].sum():,.2f}"
+    )
+
+    # ---------- CHARTS ----------
+    st.subheader("📈 Spending Analytics")
+
+    chart_col1, chart_col2 = st.columns(2)
+
+    with chart_col1:
+        st.write("**Spending by Category**")
+
+        category_data = filtered_df.groupby("category")["amount"].sum()
+
+        if not category_data.empty:
+            fig, ax = plt.subplots(figsize=(7, 4))
+            category_data.sort_values().plot(
+                kind="barh", ax=ax
+            )
+            ax.set_xlabel("Amount (₹)")
+            ax.set_ylabel("Category")
+            ax.set_title("Category-wise Expenses")
+            fig.tight_layout()
+            st.pyplot(fig)
+            plt.close(fig)
+        else:
+            st.info("No data available for this filter.")
+
+    with chart_col2:
+        st.write("**Monthly Spending Trend**")
+
+        monthly_data = (
+            df.set_index("expense_date")
+            .resample("MS")["amount"]
+            .sum()
+        )
+
+        if not monthly_data.empty:
+            fig, ax = plt.subplots(figsize=(7, 4))
+            monthly_data.plot(kind="line", marker="o", ax=ax)
+            ax.set_xlabel("Month")
+            ax.set_ylabel("Amount (₹)")
+            ax.set_title("Month-wise Expenses")
+            fig.autofmt_xdate()
+            fig.tight_layout()
+            st.pyplot(fig)
+            plt.close(fig)
+        else:
+            st.info("Not enough data to display a trend.")
+
+    # ---------- DATA INSIGHTS ----------
+    st.subheader("🤖 Spending Insights")
+
+    highest_category = df.groupby("category")["amount"].sum()
+    # Average daily spending
+df["expense_date"] = pd.to_datetime(df["expense_date"])
+
+daily_spending = df.groupby(
+    df["expense_date"].dt.date
+)["amount"].sum()
+
+average_daily_spending = daily_spending.mean()
+insight_col1, insight_col2 = st.columns(2)
+
+with insight_col1:
+        st.write("**Highest Spending Category**")
+        if not highest_category.empty:
+            top_category = highest_category.idxmax()
+            top_amount = highest_category.max()
+            st.info(f"{top_category}: ₹{top_amount:,.2f}")
+
+with insight_col2:
+        st.write("**Average Expense per Transaction**")
+        average_expense = df["amount"].mean()
+        st.info(f"₹{average_expense:,.2f}")
+
+if monthly_spending > 0:
+    st.write(
+        f"You have spent ₹{monthly_spending:,.2f} "
+        "during the current month."
+    )
+
+    # ---------- EXPENSE HISTORY ----------
+    st.subheader("📋 Expense History")
+
+    display_df = filtered_df.copy()
+    display_df["expense_date"] = (
+        display_df["expense_date"].dt.strftime("%Y-%m-%d")
+    )
     display_df = display_df.rename(columns={
+        "id": "ID",
         "expense_date": "Date",
         "category": "Category",
         "amount": "Amount (₹)",
-        "description": "Description",
-        "id": "ID"
+        "description": "Description"
     })
 
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df,width="stretch", hide_index=True)
 
-    csv_data = df.to_csv(index=False).encode("utf-8")
+    csv_data = filtered_df.to_csv(index=False).encode("utf-8")
 
     st.download_button(
-        "📥 Download Expenses as CSV",
+        "📥 Download Filtered Expenses (CSV)",
         data=csv_data,
         file_name="my_expenses.csv",
         mime="text/csv"
     )
 
+    # ---------- EDIT EXPENSE ----------
+    st.subheader("✏️ Edit an Expense")
+
+    with st.expander("Open expense editor"):
+        edit_ids = df["id"].tolist()
+        edit_id = st.selectbox(
+            "Choose expense ID to edit",
+            edit_ids,
+            key="edit_id"
+        )
+
+        selected_row = df[df["id"] == edit_id].iloc[0]
+
+        with st.form("edit_form"):
+            edit_date = st.date_input(
+                "New date",
+                value=selected_row["expense_date"].date()
+            )
+
+            current_category = selected_row["category"]
+            category_options = CATEGORIES.copy()
+
+            if current_category not in category_options:
+                category_options.append(current_category)
+
+            edit_category = st.selectbox(
+                "New category",
+                category_options,
+                index=category_options.index(current_category)
+            )
+
+            edit_amount = st.number_input(
+                "New amount (₹)",
+                min_value=0.01,
+                value=float(selected_row["amount"]),
+                step=10.0
+            )
+
+            old_description = selected_row["description"]
+            edit_description = st.text_input(
+                "New description",
+                value="" if pd.isna(old_description) else str(old_description)
+            )
+
+            update_expense = st.form_submit_button("Update Expense")
+
+            if update_expense:
+                conn.execute("""
+                    UPDATE expenses
+                    SET expense_date = ?, category = ?,
+                        amount = ?, description = ?
+                    WHERE id = ?
+                """, (
+                    str(edit_date), edit_category, edit_amount,
+                    edit_description, edit_id
+                ))
+                conn.commit()
+                st.success("Expense updated!")
+                st.rerun()
+
+    # ---------- DELETE EXPENSE ----------
     st.subheader("🗑️ Delete an Expense")
 
-    expense_ids = df["id"].tolist()
+    delete_id = st.selectbox(
+        "Select expense ID to delete",
+        df["id"].tolist(),
+        key="delete_id"
+    )
 
-    selected_id = st.selectbox(
-        "Select Expense ID",
-        expense_ids
+    confirm_delete = st.checkbox(
+        "I confirm that I want to delete this expense."
     )
 
     if st.button("Delete Selected Expense"):
-        conn.execute("DELETE FROM expenses WHERE id = ?", (selected_id,))
-        conn.commit()
-        st.success("Expense deleted!")
-        st.rerun()
-
-else:
-    st.info("No expenses added yet. Use the sidebar to add your first expense!")
+        if confirm_delete:
+            conn.execute(
+                "DELETE FROM expenses WHERE id = ?",
+                (delete_id,)
+            )
+            conn.commit()
+            st.success("Expense deleted!")
+            st.rerun()
+        else:
+            st.warning("Please confirm before deleting.")
 
 st.divider()
-st.caption("Personal Expense Tracker | Built using Python, Streamlit, Pandas, Matplotlib and SQLite")
+st.caption(
+    "Personal Expense Tracker | Python • Streamlit • Pandas "
+    "• Matplotlib • SQLite"
+)
 
 conn.close()
