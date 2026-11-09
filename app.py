@@ -344,32 +344,32 @@ else:
 
     highest_category = df.groupby("category")["amount"].sum()
     # Average daily spending
-df["expense_date"] = pd.to_datetime(df["expense_date"])
+    df["expense_date"] = pd.to_datetime(df["expense_date"])
 
-daily_spending = df.groupby(
-    df["expense_date"].dt.date
-)["amount"].sum()
+    daily_spending = df.groupby(
+        df["expense_date"].dt.date
+    )["amount"].sum()
 
-average_daily_spending = daily_spending.mean()
-insight_col1, insight_col2 = st.columns(2)
+    average_daily_spending = daily_spending.mean()
+    insight_col1, insight_col2 = st.columns(2)
 
-with insight_col1:
-        st.write("**Highest Spending Category**")
-        if not highest_category.empty:
-            top_category = highest_category.idxmax()
-            top_amount = highest_category.max()
-            st.info(f"{top_category}: ₹{top_amount:,.2f}")
+    with insight_col1:
+            st.write("**Highest Spending Category**")
+            if not highest_category.empty:
+                top_category = highest_category.idxmax()
+                top_amount = highest_category.max()
+                st.info(f"{top_category}: ₹{top_amount:,.2f}")
 
-with insight_col2:
-        st.write("**Average Expense per Transaction**")
-        average_expense = df["amount"].mean()
-        st.info(f"₹{average_expense:,.2f}")
+    with insight_col2:
+            st.write("**Average Expense per Transaction**")
+            average_expense = df["amount"].mean()
+            st.info(f"₹{average_expense:,.2f}")
 
-if monthly_spending > 0:
-    st.write(
-        f"You have spent ₹{monthly_spending:,.2f} "
-        "during the current month."
-    )
+    if monthly_spending > 0:
+        st.write(
+            f"You have spent ₹{monthly_spending:,.2f} "
+            "during the current month."
+        )
 
     # ---------- EXPENSE HISTORY ----------
     st.subheader("📋 Expense History")
