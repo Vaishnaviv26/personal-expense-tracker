@@ -44,7 +44,7 @@ CATEGORIES = [
 
 # ---------- PROFESSIONAL DESIGN ----------
 st.markdown("""
-/* Professional Dashboard Theme */
+
 <style>
 .stApp {
     background-color: #f5f7fb;
@@ -198,7 +198,18 @@ else:
     total_spending = float(df["amount"].sum())
     monthly_spending = float(month_df["amount"].sum())
     remaining_budget = monthly_budget - monthly_spending
- 
+    # Previous Month Spending
+previous_month = today - pd.DateOffset(months=1)
+
+previous_month_df = df[
+    (df["expense_date"].dt.month == previous_month.month) &
+    (df["expense_date"].dt.year == previous_month.year)
+]
+
+previous_month_spending = float(previous_month_df["amount"].sum())
+
+# Monthly Spending Difference
+spending_difference = monthly_spending - previous_month_spending
     # ---------- SUMMARY CARDS ----------
     st.subheader("📊 Financial Overview")
 
@@ -221,7 +232,23 @@ else:
             st.warning("You have used at least 80% of your monthly budget.")
         else:
             st.success("Your spending is within your monthly budget.")
+    # Monthly Spending Comparison
+st.subheader("📈 Monthly Spending Comparison")
 
+col1, col2 = st.columns(2)
+
+with col1:
+    st.metric(
+        "Previous Month Spending",
+        f"₹{previous_month_spending:,.2f}"
+    )
+
+with col2:
+    st.metric(
+        "Spending Change",
+        f"₹{spending_difference:,.2f}",
+        delta_color="inverse"
+    )
     # ---------- FILTERS ----------
     st.subheader("🔎 Filter Expenses")
 
