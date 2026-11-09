@@ -197,7 +197,7 @@ else:
 
     total_spending = float(df["amount"].sum())
     monthly_spending = float(month_df["amount"].sum())
-    remaining_budget = stmonthly_budget - monthly_spending
+    remaining_budget = monthly_budget - monthly_spending
  
     # ---------- SUMMARY CARDS ----------
     st.subheader("📊 Financial Overview")
