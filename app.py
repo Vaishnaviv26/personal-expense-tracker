@@ -197,22 +197,8 @@ else:
 
     total_spending = float(df["amount"].sum())
     monthly_spending = float(month_df["amount"].sum())
-    remaining_budget = monthly_budget - monthly_spending
-    # Monthly Budget Progress
-budget_used = monthly_spending / monthly_budget if monthly_budget > 0 else 0
-
-st.markdown("### 📊 Monthly Budget Usage")
-
-st.progress(min(budget_used, 1.0))
-
-st.caption(
-    f"You have used {budget_used * 100:.1f}% of your monthly budget."
-)
-
-if remaining_budget >= 0:
-    st.success(f"₹{remaining_budget:,.2f} budget remaining this month!")
-else:
-    st.warning(f"You have exceeded your budget by ₹{abs(remaining_budget):,.2f}!")
+    remaining_budget = stmonthly_budget - monthly_spending
+ 
     # ---------- SUMMARY CARDS ----------
     st.subheader("📊 Financial Overview")
 
