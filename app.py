@@ -44,105 +44,78 @@ CATEGORIES = [
 
 # ---------- PROFESSIONAL DESIGN ----------
 st.markdown("""
+/* Professional Dashboard Theme */
 <style>
-
-/* Main page background */
 .stApp {
-    background-color: #F3F6FB;
-    color: #243447;
+    background-color: #f5f7fb;
+    color: #1e293b;
+    font-family: 'Segoe UI', sans-serif;
 }
 
-/* Main content */
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
+section[data-testid="stSidebar"] {
+    background-color: #ffffff;
+    border-right: 1px solid #e2e8f0;
 }
 
-/* Sidebar */
-[data-testid="stSidebar"] {
-    background-color: #E7EEF8;
-}
-
-/* Headings */
 h1 {
-    color: #17365D !important;
-    font-weight: 800 !important;
+    color: #17365d !important;
+    font-weight: 750 !important;
 }
 
 h2, h3 {
-    color: #24476B !important;
-    font-weight: 700 !important;
+    color: #243b53 !important;
+    font-weight: 650 !important;
 }
 
-/* Normal text */
-.stApp p,
-.stApp label,
-.stApp .stMarkdown {
-    color: #243447;
-}
-
-/* Metric cards */
-[data-testid="stMetric"] {
-    background-color: #FFFFFF;
+div[data-testid="stMetric"] {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     padding: 20px;
     border-radius: 14px;
-    border: 1px solid #D8E2F0;
-    box-shadow: 0 4px 12px rgba(23, 54, 93, 0.08);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.04);
 }
 
-/* Metric labels */
-[data-testid="stMetricLabel"] {
-    color: #52677F !important;
-}
-
-/* Metric values */
-[data-testid="stMetricValue"] {
-    color: #17365D !important;
-    font-weight: 800;
-    font-size: 16px !important;
-    white-space: nowrap;
-}
-
-/* Buttons */
-.stButton > button,
-.stDownloadButton > button,
-.stFormSubmitButton > button {
-    background-color: #2457A7;
-    color: white !important;
-    border: none;
-    border-radius: 8px;
+div[data-testid="stMetricLabel"] {
+    color: #64748b !important;
     font-weight: 600;
-    padding: 0.5rem 1rem;
 }
 
-/* Button hover */
-.stButton > button:hover,
-.stDownloadButton > button:hover,
-.stFormSubmitButton > button:hover {
-    background-color: #17365D;
-    color: white !important;
+div[data-testid="stMetricValue"] {
+    color: #17365d !important;
+    font-weight: 750;
+}
+
+.stButton > button {
+    background-color: #2457a6;
+    color: white;
+    border: none;
+    border-radius: 9px;
+    padding: 9px 18px;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+.stButton > button:hover {
+    background-color: #17365d;
+    color: white;
     border: none;
 }
 
-/* Input boxes */
-[data-testid="stTextInput"] input,
-[data-testid="stNumberInput"] input {
-    background-color: #FFFFFF;
-    color: #243447;
-    border-radius: 7px;
+div[data-testid="stForm"] {
+    background: white;
+    padding: 18px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
 }
 
-/* Data table */
-[data-testid="stDataFrame"] {
-    background-color: #FFFFFF;
-    border-radius: 10px;
+div[data-testid="stDataFrame"] {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
 }
 
-/* Dividers */
 hr {
-    border-color: #D8E2F0;
+    border-color: #e2e8f0;
 }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -225,7 +198,21 @@ else:
     total_spending = float(df["amount"].sum())
     monthly_spending = float(month_df["amount"].sum())
     remaining_budget = monthly_budget - monthly_spending
+    # Monthly Budget Progress
+budget_used = monthly_spending / monthly_budget if monthly_budget > 0 else 0
 
+st.markdown("### 📊 Monthly Budget Usage")
+
+st.progress(min(budget_used, 1.0))
+
+st.caption(
+    f"You have used {budget_used * 100:.1f}% of your monthly budget."
+)
+
+if remaining_budget >= 0:
+    st.success(f"₹{remaining_budget:,.2f} budget remaining this month!")
+else:
+    st.warning(f"You have exceeded your budget by ₹{abs(remaining_budget):,.2f}!")
     # ---------- SUMMARY CARDS ----------
     st.subheader("📊 Financial Overview")
 
